@@ -99,13 +99,13 @@ class ThePokeGOBot(telepot.aio.helper.ChatHandler):
                     msg = await self.sender.sendMessage(_("Meowth! The raid of id *%s* does not exist or has already ended!") % (raid_id))
                     self.delete_messages(msg)
                 else:
-                    if user['id'] == raid['created_by']['id']:
+                    if self.exists_trainer_in_raid(raid, int(user['id'])) == True:
                         raid['start_time'] = new_time
                         self.persist_data()
                         for msg in raid['messages']:
                             await self.bot.editMessageText(telepot.message_identifier(msg), self.create_list(raid), reply_markup=self.create_keyboard(raid), parse_mode="markdown")
                     else:
-                        msg = await self.sender.sendMessage(_("Meowth! Only list's creator can change the time!"))
+                        msg = await self.sender.sendMessage(_("Meowth! You must be part of the list to use this command!"))
                         self.delete_messages(msg)
         # Edit the name raid
         elif cmd == _('/editname'):
@@ -123,13 +123,14 @@ class ThePokeGOBot(telepot.aio.helper.ChatHandler):
                         msg = await self.sender.sendMessage(_("Meowth! The %s of id *%s* does not exist or has already ended!") % (_type, _id), parse_mode="markdown")
                         self.delete_messages(msg)
                     else:
-                        add = True
-                        add = next((x for x in obj['going'] if int(x['user']['id']) == int(user['id'])), None) != None
-                        if add == True:
+                        if self.exists_trainer_in_raid(obj, int(user['id'])) == True:
                             raid['pokemon'] = new_name
                             self.persist_data()
                             for msg in raid['messages']:
                                 await self.bot.editMessageText(telepot.message_identifier(msg), self.create_list(raid), reply_markup=self.create_keyboard(raid), parse_mode="markdown")
+                        else:
+                            msg = await self.sender.sendMessage(_("Meowth! You must be part of the list to use this command!"))
+                            self.delete_messages(msg)
 		# Cancel/finish active raid
         elif cmd == _('/cancel') or cmd == _('/end'):
             if len(params) == 1:
@@ -142,13 +143,13 @@ class ThePokeGOBot(telepot.aio.helper.ChatHandler):
                         msg = await self.sender.sendMessage(_("Meowth! The raid of id *%s* does not exist or has already ended!") % (raid_id), parse_mode = "markdown")
                         self.delete_messages(msg)
                     else:
-                        if raid['created_by']['id'] == user['id']:
+                        if self.exists_trainer_in_raid(raid, int(user['id'])) == True:
                             raid['status'] = _('canceled') if command == _('cancel') else _('ended')
                             self.persist_data()
                             for msg in raid['messages']:
                                 await self.bot.editMessageText(telepot.message_identifier(msg), self.create_list(raid), reply_markup=None, parse_mode="markdown")
                         else:
-                            msg = await self.sender.sendMessage(_("Meowth! Only list's creator can cancel or finish a list!"))
+                            msg = await self.sender.sendMessage(_("Meowth! You must be part of the list to use this command!"))
                             self.delete_messages(msg)
         # Set trainer informations
         elif cmd == _('/trainer'):
@@ -278,10 +279,11 @@ class ThePokeGOBot(telepot.aio.helper.ChatHandler):
                                     elif params[0] == _('q'):
                                         msg = await self.sender.sendMessage(self.create_quest(obj), parse_mode="markdown")
 
-                                    if next((x for x in obj['messages'] if int(x['chat']['id']) == int(msg['chat']['id'])), None) != None:
-                                        await self.bot.deleteMessage(telepot.message_identifier(msg))
-                                        msg = await self.sender.sendMessage(_("Meowth! The %s of id *%s* has already been posted in this group!") % (_type, _id), parse_mode = "markdown")                    
-                                        self.delete_messages(msg)
+                                    if params[0] == _('r'):
+                                        if next((x for x in obj['messages'] if int(x['chat']['id']) == int(msg['chat']['id'])), None) != None:
+                                            await self.bot.deleteMessage(telepot.message_identifier(msg))
+                                            msg = await self.sender.sendMessage(_("Meowth! The %s of id *%s* has already been posted in this group!") % (_type, _id), parse_mode = "markdown")
+                                            self.delete_messages(msg)
 
                                     if next((x for x in obj['messages'] if int(x['message_id']) == int(msg['message_id'])), None) == None:
                                         obj['messages'].append(msg)
@@ -527,6 +529,9 @@ class ThePokeGOBot(telepot.aio.helper.ChatHandler):
             username = f"{trainer['nickname']}"
 
         return f"[{username}](tg://user?id={user['id']}){trainer_info}"
+
+    def exists_trainer_in_raid(self,raid,iduser):
+        return next((x for x in raid['going'] if int(x['user']['id']) == iduser), None) != None
 
     def create_keyboard(self, raid):
         return InlineKeyboardMarkup(inline_keyboard=[
