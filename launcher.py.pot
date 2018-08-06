@@ -219,7 +219,7 @@ msgid ""
 "_This message will be automatically deleted in a minute._"
 msgstr ""
 
-#: launcher.py:400
+#: launcher.py:397
 #, python-format
 msgid ""
 "*Commands*\n"
